@@ -7,48 +7,57 @@ import (
 
 	rdb "github.com/dancannon/gorethink"
 	"github.com/julienschmidt/httprouter"
+	"github.com/rs/cors"
 )
 
-// Conn holds our connection to the database
-type Conn struct {
+// Person is the model for our user
+type Person struct {
+	ID             string `json:"id"`
+	FirstName      string `json:"firstName"`
+	LastName       string `json:"lastName"`
+	CoolnessFactor int    `json:"coolnessFactor"`
+}
+
+// DB holds our connection to the database
+type DB struct {
 	Session *rdb.Session
 }
 
-func newConn() Conn {
+func newDBConn() *DB {
 	session, err := rdb.Connect(rdb.ConnectOpts{
 		Address: "localhost:28015",
 	})
 	if err != nil {
 		log.Fatal("Error: %s\n", err)
 	}
-	return Conn{
+	return &DB{
 		Session: session,
 	}
 }
 
 func main() {
-	conn := newConn()
-	conn.Init("arg", "People")
+	db := newDBConn()
+	db.Init("arg", "People")
 	router := httprouter.New()
 
-	router.GET("/api/people", conn.List)
-	router.GET("/api/people/:id", conn.Get)
-	router.PUT("/api/people/:id", conn.Update)
-	router.DELETE("/api/people/:id", conn.Delete)
-	router.POST("/api/people", conn.Add)
+	router.GET("/api/people", db.List)
+	router.GET("/api/people/:id", db.Get)
+	router.PUT("/api/people/:id", db.Update)
+	router.DELETE("/api/people/:id", db.Delete)
+	router.POST("/api/people", db.Add)
 
-	http.ListenAndServe(":3000", router)
+	http.ListenAndServe(":8000", cors.Default().Handler(router))
 }
 
 // Init creates a new DB and a new table
-func (c *Conn) Init(db string, table string) error {
-	resp, err := rdb.DBCreate(db).RunWrite(c.Session)
+func (db *DB) Init(dbName string, tableName string) error {
+	resp, err := rdb.DBCreate(dbName).RunWrite(db.Session)
 	if err != nil {
 		return err
 	}
 	log.Println("DB created: ", resp.DBsCreated)
 
-	resp, err = rdb.TableCreate(table).RunWrite(c.Session)
+	resp, err = rdb.TableCreate(tableName).RunWrite(db.Session)
 	if err != nil {
 		return err
 	}
@@ -58,43 +67,63 @@ func (c *Conn) Init(db string, table string) error {
 }
 
 // List all users
-func (c *Conn) List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	resp, err := rdb.Table("People").Run(c.Session)
+func (db *DB) List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var people []Person
+	rows, err := rdb.Table("People").Run(db.Session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	// Will this work?
-	json.NewEncoder(w).Encode(resp)
+	err = rows.All(&people)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	json.NewEncoder(w).Encode(people)
 }
 
 // Get all users
-func (c *Conn) Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	user := ps.ByName("id")
-	resp, err := rdb.Table("People").Get(user).RunWrite(c.Session)
+func (db *DB) Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var p Person
+	row, err := rdb.Table("People").Get(ps.ByName("id")).Run(db.Session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	row.One(&p)
+	json.NewEncoder(w).Encode(p)
 }
 
 // Update a specific user
-func (c *Conn) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
-}
-
-// Delete a specific user
-func (c *Conn) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
-}
-
-// Add a new user
-func (c *Conn) Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	resp, err := rdb.Table("People").Insert(r.Body).Run(c.Session)
+func (db *DB) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	resp, err := rdb.Table("People").Update(ps.ByName("id")).RunWrite(db.Session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	json.NewEncoder(w).Encode(resp)
+}
+
+// Delete a specific user
+func (db *DB) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	resp, err := rdb.Table("People").Get(ps.ByName("id")).Delete().RunWrite(db.Session)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	json.NewEncoder(w).Encode(resp)
+}
+
+// Add a new user
+func (db *DB) Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var p Person
+	json.NewDecoder(r.Body).Decode(&p)
+
+	row, err := rdb.Table("People").Insert(p).Run(db.Session)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	err = row.One(p)
+	json.NewEncoder(w).Encode(p)
 }
