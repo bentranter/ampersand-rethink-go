@@ -38,6 +38,9 @@ func newDBConn() *DB {
 func main() {
 	db := newDBConn()
 	db.Init("arg", "People")
+	c := cors.New(cors.Options{
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
+	})
 	router := httprouter.New()
 
 	router.GET("/api/people", db.List)
@@ -46,7 +49,7 @@ func main() {
 	router.DELETE("/api/people/:id", db.Delete)
 	router.POST("/api/people", db.Add)
 
-	http.ListenAndServe(":8000", cors.Default().Handler(router))
+	http.ListenAndServe(":8000", c.Handler(router))
 }
 
 // Init creates a new DB and a new table
@@ -96,12 +99,15 @@ func (db *DB) Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 
 // Update a specific user
 func (db *DB) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	resp, err := rdb.Table("People").Update(ps.ByName("id")).RunWrite(db.Session)
+	var p Person
+	json.NewDecoder(r.Body).Decode(&p)
+
+	resp, err := rdb.Table("People").Get(ps.ByName("id")).Update(p).RunWrite(db.Session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(resp.GeneratedKeys)
 }
 
 // Delete a specific user
