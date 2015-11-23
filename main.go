@@ -12,6 +12,7 @@ import (
 
 // Person is the model for our user
 type Person struct {
+	ID             string `gorethink:"id,omitempty"` // Need json
 	FirstName      string `json:"firstName"`
 	LastName       string `json:"lastName"`
 	CoolnessFactor int    `json:"coolnessFactor"`
@@ -34,38 +35,14 @@ func newDBConn() *DB {
 	}
 }
 
-func main() {
-	db := newDBConn()
-	db.Init("arg", "People")
-	c := cors.New(cors.Options{
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
-	})
-	router := httprouter.New()
 
-	router.GET("/api/people", db.List)
-	router.GET("/api/people/:id", db.Get)
-	router.PUT("/api/people/:id", db.Update)
-	router.DELETE("/api/people/:id", db.Delete)
-	router.POST("/api/people", db.Add)
-
-	http.ListenAndServe(":8000", c.Handler(router))
-}
-
-// Init creates a new DB and a new table
-func (db *DB) Init(dbName string, tableName string) error {
-	resp, err := rdb.DBCreate(dbName).RunWrite(db.Session)
+// InitTable creates a new table
+func (db *DB) InitTable(tableName string) {
+	resp, err := rdb.TableCreate(tableName).RunWrite(db.Session)
 	if err != nil {
-		return err
+		log.Printf("Note: %s\n", err)
 	}
-	log.Println("DB created: ", resp.DBsCreated)
-
-	resp, err = rdb.TableCreate(tableName).RunWrite(db.Session)
-	if err != nil {
-		return err
-	}
-	log.Println("Table created: ", resp.TablesCreated)
-
-	return nil
+	log.Println("Tables created: ", resp.TablesCreated)
 }
 
 // List all users
@@ -129,6 +106,27 @@ func (db *DB) Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	// While this is cool it's probably easier just to use a marshaler. On the
+	// other hand, this keep it consistent, so it's probably easier to
+	// understand this way.
 	id := row.GeneratedKeys
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"id": id[0]})
+}
+
+func main() {
+	db := newDBConn()
+	db.InitTable("People")
+	c := cors.New(cors.Options{
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
+	})
+	router := httprouter.New()
+
+	router.GET("/api/people", db.List)
+	router.GET("/api/people/:id", db.Get)
+	router.PUT("/api/people/:id", db.Update)
+	router.DELETE("/api/people/:id", db.Delete)
+	router.POST("/api/people", db.Add)
+
+	http.ListenAndServe(":8000", c.Handler(router))
 }
