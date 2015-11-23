@@ -12,7 +12,6 @@ import (
 
 // Person is the model for our user
 type Person struct {
-	ID             string `json:"id"`
 	FirstName      string `json:"firstName"`
 	LastName       string `json:"lastName"`
 	CoolnessFactor int    `json:"coolnessFactor"`
@@ -125,11 +124,11 @@ func (db *DB) Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var p Person
 	json.NewDecoder(r.Body).Decode(&p)
 
-	row, err := rdb.Table("People").Insert(p).Run(db.Session)
+	row, err := rdb.Table("People").Insert(p).RunWrite(db.Session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	err = row.One(p)
-	json.NewEncoder(w).Encode(p)
+	id := row.GeneratedKeys
+	json.NewEncoder(w).Encode(map[string]string{"id": id[0]})
 }
