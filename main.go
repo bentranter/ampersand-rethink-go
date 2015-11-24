@@ -10,15 +10,15 @@ import (
 	"github.com/rs/cors"
 )
 
-// Person is the model for our user
+// Person is the model for our user.
 type Person struct {
-	ID             string `gorethink:"id,omitempty"` // Need json
+	ID             string `json:"id" gorethink:"id,omitempty"`
 	FirstName      string `json:"firstName"`
 	LastName       string `json:"lastName"`
 	CoolnessFactor int    `json:"coolnessFactor"`
 }
 
-// DB holds our connection to the database
+// DB stores our connection to the database.
 type DB struct {
 	Session *rdb.Session
 }
@@ -35,8 +35,7 @@ func newDBConn() *DB {
 	}
 }
 
-
-// InitTable creates a new table
+// InitTable creates a new table.
 func (db *DB) InitTable(tableName string) {
 	resp, err := rdb.TableCreate(tableName).RunWrite(db.Session)
 	if err != nil {
