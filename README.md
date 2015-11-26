@@ -23,3 +23,5 @@ $ go run main.go
 ```
 
 If that works, you're all set! Open your browser to `http://localhost:3000/` to see it working.
+
+If you need to check the contents of your DB, go to `http://localhost:8080/` to view the RethinkDB admin panel.
