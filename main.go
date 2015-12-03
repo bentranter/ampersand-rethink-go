@@ -4,10 +4,15 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	rdb "github.com/dancannon/gorethink"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
+)
+
+var (
+	session = newDBConn()
 )
 
 // Person is the model for our user.
@@ -18,26 +23,19 @@ type Person struct {
 	CoolnessFactor int    `json:"coolnessFactor"`
 }
 
-// DB stores our connection to the database.
-type DB struct {
-	Session *rdb.Session
-}
-
-func newDBConn() *DB {
+func newDBConn() *rdb.Session {
 	session, err := rdb.Connect(rdb.ConnectOpts{
 		Address: "localhost:28015",
 	})
 	if err != nil {
 		log.Fatal("Error: %s\n", err)
 	}
-	return &DB{
-		Session: session,
-	}
+	return session
 }
 
 // InitTable creates a new table.
-func (db *DB) InitTable(tableName string) {
-	resp, err := rdb.TableCreate(tableName).RunWrite(db.Session)
+func InitTable(tableName string) {
+	resp, err := rdb.TableCreate(tableName).RunWrite(session)
 	if err != nil {
 		log.Printf("Note: %s\n", err)
 	}
@@ -45,9 +43,9 @@ func (db *DB) InitTable(tableName string) {
 }
 
 // List all users
-func (db *DB) List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var people []Person
-	rows, err := rdb.Table("People").Run(db.Session)
+	rows, err := rdb.Table("People").Run(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -61,9 +59,9 @@ func (db *DB) List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) 
 }
 
 // Get all users
-func (db *DB) Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	var p Person
-	row, err := rdb.Table("People").Get(ps.ByName("id")).Run(db.Session)
+	row, err := rdb.Table("People").Get(ps.ByName("id")).Run(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -73,11 +71,11 @@ func (db *DB) Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 }
 
 // Update a specific user
-func (db *DB) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	var p Person
 	json.NewDecoder(r.Body).Decode(&p)
 
-	resp, err := rdb.Table("People").Get(ps.ByName("id")).Update(p).RunWrite(db.Session)
+	resp, err := rdb.Table("People").Get(ps.ByName("id")).Update(p).RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -86,8 +84,8 @@ func (db *DB) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 }
 
 // Delete a specific user
-func (db *DB) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	resp, err := rdb.Table("People").Get(ps.ByName("id")).Delete().RunWrite(db.Session)
+func Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	resp, err := rdb.Table("People").Get(ps.ByName("id")).Delete().RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -96,11 +94,11 @@ func (db *DB) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Param
 }
 
 // Add a new user
-func (db *DB) Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var p Person
 	json.NewDecoder(r.Body).Decode(&p)
 
-	row, err := rdb.Table("People").Insert(p).RunWrite(db.Session)
+	row, err := rdb.Table("People").Insert(p).RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -114,18 +112,18 @@ func (db *DB) Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
-	db := newDBConn()
-	db.InitTable("People")
+	newDBConn()
+	InitTable("People")
 	c := cors.New(cors.Options{
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
 	})
 	router := httprouter.New()
 
-	router.GET("/api/people", db.List)
-	router.GET("/api/people/:id", db.Get)
-	router.PUT("/api/people/:id", db.Update)
-	router.DELETE("/api/people/:id", db.Delete)
-	router.POST("/api/people", db.Add)
+	router.GET("/api/people", List)
+	router.GET("/api/people/:id", Get)
+	router.PUT("/api/people/:id", Update)
+	router.DELETE("/api/people/:id", Delete)
+	router.POST("/api/people", Add)
 
 	http.ListenAndServe(":8000", c.Handler(router))
 }
