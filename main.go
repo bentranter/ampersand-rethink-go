@@ -4,16 +4,13 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 
 	rdb "github.com/dancannon/gorethink"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
 )
 
-var (
-	session = newDBConn()
-)
+var session = newDBConn()
 
 // Person is the model for our user.
 type Person struct {
@@ -33,8 +30,7 @@ func newDBConn() *rdb.Session {
 	return session
 }
 
-// InitTable creates a new table.
-func InitTable(tableName string) {
+func initTable(tableName string) {
 	resp, err := rdb.TableCreate(tableName).RunWrite(session)
 	if err != nil {
 		log.Printf("Note: %s\n", err)
@@ -112,11 +108,11 @@ func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
-	newDBConn()
-	InitTable("People")
+	initTable("People")
 	c := cors.New(cors.Options{
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
 	})
+
 	router := httprouter.New()
 
 	router.GET("/api/people", List)
