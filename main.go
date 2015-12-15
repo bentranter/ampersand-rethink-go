@@ -13,9 +13,7 @@ import (
 var (
 	session   = newDBConn()
 	tableName = "People"
-	c         = cors.New(cors.Options{
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
-	})
+	c         = newCORSOptions()
 )
 
 // Person is the model for our user.
@@ -41,6 +39,13 @@ func newDBConn() *rdb.Session {
 	log.Println("Tables created: ", resp.TablesCreated)
 
 	return session
+}
+
+func newCORSOptions() *cors.Cors {
+	c := cors.New(cors.Options{
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
+	})
+	return c
 }
 
 // List all users
