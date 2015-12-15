@@ -13,6 +13,9 @@ import (
 var (
 	session   = newDBConn()
 	tableName = "People"
+	c         = cors.New(cors.Options{
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
+	})
 )
 
 // Person is the model for our user.
@@ -110,9 +113,6 @@ func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
-	c := cors.New(cors.Options{
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
-	})
 
 	router := httprouter.New()
 
