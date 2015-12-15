@@ -10,7 +10,10 @@ import (
 	"github.com/rs/cors"
 )
 
-var session = newDBConn()
+var (
+	session   = newDBConn()
+	tableName = "People"
+)
 
 // Person is the model for our user.
 type Person struct {
@@ -28,7 +31,7 @@ func newDBConn() *rdb.Session {
 		log.Fatal("Error: %s\n", err)
 	}
 
-	resp, err := rdb.TableCreate("People").RunWrite(session)
+	resp, err := rdb.TableCreate(tableName).RunWrite(session)
 	if err != nil {
 		log.Printf("Note: %s\n", err)
 	}
@@ -40,7 +43,7 @@ func newDBConn() *rdb.Session {
 // List all users
 func List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var people []Person
-	rows, err := rdb.Table("People").Run(session)
+	rows, err := rdb.Table(tableName).Run(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -56,7 +59,7 @@ func List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 // Get all users
 func Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	var p Person
-	row, err := rdb.Table("People").Get(ps.ByName("id")).Run(session)
+	row, err := rdb.Table(tableName).Get(ps.ByName("id")).Run(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -70,7 +73,7 @@ func Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	var p Person
 	json.NewDecoder(r.Body).Decode(&p)
 
-	resp, err := rdb.Table("People").Get(ps.ByName("id")).Update(p).RunWrite(session)
+	resp, err := rdb.Table(tableName).Get(ps.ByName("id")).Update(p).RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -80,7 +83,7 @@ func Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 // Delete a specific user
 func Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	resp, err := rdb.Table("People").Get(ps.ByName("id")).Delete().RunWrite(session)
+	resp, err := rdb.Table(tableName).Get(ps.ByName("id")).Delete().RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -93,7 +96,7 @@ func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var p Person
 	json.NewDecoder(r.Body).Decode(&p)
 
-	row, err := rdb.Table("People").Insert(p).RunWrite(session)
+	row, err := rdb.Table(tableName).Insert(p).RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
