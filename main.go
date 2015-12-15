@@ -27,15 +27,14 @@ func newDBConn() *rdb.Session {
 	if err != nil {
 		log.Fatal("Error: %s\n", err)
 	}
-	return session
-}
 
-func initTable(tableName string) {
-	resp, err := rdb.TableCreate(tableName).RunWrite(session)
+	resp, err := rdb.TableCreate("People").RunWrite(session)
 	if err != nil {
 		log.Printf("Note: %s\n", err)
 	}
 	log.Println("Tables created: ", resp.TablesCreated)
+
+	return session
 }
 
 // List all users
@@ -108,7 +107,6 @@ func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func main() {
-	initTable("People")
 	c := cors.New(cors.Options{
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "HEAD"},
 	})
