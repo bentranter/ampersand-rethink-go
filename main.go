@@ -29,7 +29,7 @@ func newDBConn() *rdb.Session {
 		Address: "localhost:28015",
 	})
 	if err != nil {
-		log.Fatal("Error: %s\n", err)
+		log.Fataln("Error: %s", err)
 	}
 
 	resp, err := rdb.TableCreate(tableName).RunWrite(session)
@@ -48,7 +48,7 @@ func newCORSOptions() *cors.Cors {
 	return c
 }
 
-// List all users
+// List all users in the DB.
 func List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var people []Person
 	rows, err := rdb.Table(tableName).Run(session)
@@ -64,7 +64,7 @@ func List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	json.NewEncoder(w).Encode(people)
 }
 
-// Get all users
+// Get all users in the DB.
 func Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	var p Person
 	row, err := rdb.Table(tableName).Get(ps.ByName("id")).Run(session)
@@ -89,7 +89,7 @@ func Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	json.NewEncoder(w).Encode(resp.GeneratedKeys)
 }
 
-// Delete a specific user
+// Delete a specific user from the DB>
 func Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	resp, err := rdb.Table(tableName).Get(ps.ByName("id")).Delete().RunWrite(session)
 	if err != nil {
@@ -108,21 +108,19 @@ func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
-	// While this is cool it's probably easier just to use a marshaler. On the
-	// other hand, this keep it consistent, so it's probably easier to
-	// understand this way.
 	id := row.GeneratedKeys
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"id": id[0]})
+	json.NewEncoder(w).Encode(map[string]string{
+		"id": id[0],
+	})
 }
 
 func main() {
-
 	router := httprouter.New()
 
 	router.GET("/api/people", List)
 	router.GET("/api/people/:id", Get)
+
 	router.PUT("/api/people/:id", Update)
 	router.DELETE("/api/people/:id", Delete)
 	router.POST("/api/people", Add)
