@@ -29,7 +29,8 @@ func newDBConn() *rdb.Session {
 		Address: "localhost:28015",
 	})
 	if err != nil {
-		log.Fataln("Error: %s", err)
+		log.Fatalln("Error: %s", err)
+		return nil
 	}
 
 	resp, err := rdb.TableCreate(tableName).RunWrite(session)
@@ -54,11 +55,13 @@ func List(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	rows, err := rdb.Table(tableName).Run(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	err = rows.All(&people)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode(people)
@@ -70,6 +73,7 @@ func Get(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	row, err := rdb.Table(tableName).Get(ps.ByName("id")).Run(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	row.One(&p)
@@ -84,6 +88,7 @@ func Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	resp, err := rdb.Table(tableName).Get(ps.ByName("id")).Update(p).RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode(resp.GeneratedKeys)
@@ -94,6 +99,7 @@ func Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	resp, err := rdb.Table(tableName).Get(ps.ByName("id")).Delete().RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode(resp)
@@ -107,6 +113,7 @@ func Add(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	row, err := rdb.Table(tableName).Insert(p).RunWrite(session)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	id := row.GeneratedKeys
 	w.WriteHeader(http.StatusCreated)
