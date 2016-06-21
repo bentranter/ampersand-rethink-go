@@ -33,10 +33,7 @@ func newDBConn() *rdb.Session {
 		return nil
 	}
 
-	resp, err := rdb.TableCreate(tableName).RunWrite(session)
-	if err != nil {
-		log.Printf("Note: %s\n", err)
-	}
+	resp, _ := rdb.TableCreate(tableName).RunWrite(session)
 	log.Println("Tables created: ", resp.TablesCreated)
 
 	return session
